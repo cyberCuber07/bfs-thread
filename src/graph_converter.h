@@ -51,9 +51,9 @@ dest insertDest(edge e) {
 
 
 template <typename T, typename TInserter>
-vec2d<T> edge2adj(const vec1d<edge> edges, TInserter inserter) {
+vec2d<T> edge2adj(const vec1d<edge> edges, TInserter inserter, int & N) {
 
-    int N = numEdges(edges);
+    N = numEdges(edges);
     vec2d<T> adj(N, std::vector<T>(0));
 
     for (edge e : edges) {
