@@ -3,6 +3,7 @@
 #define __GRAPH_CONVERTER_H
 
 #include <vector>
+#include <iostream>
 
 template <typename T>
 using vec1d = std::vector<T>;
@@ -39,19 +40,46 @@ int numEdges(const vec1d<edge> & edges) {
 }
 
 
-vec2d<dest> edge2adj(const vec1d<edge> & edges) {
+edge insertEdge(edge e) {
+    return e;
+}
+
+
+dest insertDest(edge e) {
+    return {e.dst, e.w};
+}
+
+
+template <typename T, typename TInserter>
+vec2d<T> edge2adj(const vec1d<edge> edges, TInserter inserter) {
 
     int N = numEdges(edges);
-    vec2d<dest> adj(N);
+    vec2d<T> adj(N, std::vector<T>(0));
 
     for (edge e : edges) {
-        adj[e.src].push_back(dest({e.dst, e.w}));
+        adj[e.src].push_back(
+                inserter(e)
+                );
     }
 
     return adj;
 
 }
 
+
+template <typename T>
+std::ostream & operator << (std::ostream & os,
+                            const vec2d<T> & data)
+{
+    for (int i = 0; i < data.size(); ++i) {
+        os << "# " << i << " #\n";
+        for (T d : data[i]) {
+            os << d.dst << " " << d.w << " | ";
+        }
+        os << "\n";
+    }
+    return os;
+}
 
 
 #endif

@@ -1,6 +1,8 @@
 
-X_min, Y_min = 0, 0
-X_max, Y_max = 1600, 1600
+
+N = 20
+X_min, X_max = 0, N
+Y_min, Y_max = 0, N
 W_min, W_max = 1, 100
 
 N_SETS = 4 * 10 ** 2

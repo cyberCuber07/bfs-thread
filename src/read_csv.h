@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include "graph_converter.h"
 
 typedef std::vector<std::vector<std::string>> csv_data;
@@ -16,11 +17,11 @@ struct ReadCSV {
 
     ReadCSV () {}
     
-    std::vector<std::string> get_row(std::string line) {
+    std::vector<std::string> get_row(std::string line, char delim = ',') {
         std::vector<std::string> row;
         std::stringstream s (line);
         std::string word;
-        while(getline(s, word, ',')) {
+        while(getline(s, word, delim)) {
             row.push_back(word);
         }
         return row;
@@ -66,12 +67,9 @@ struct ReadCSV {
         int ROW = data.size();
         vec1d<edge> new_data (ROW);
         for (int row = 0; row < ROW; ++row) {
-            int idx = row + 3;
-            edge e;
-            e.src = stoi(data[idx][0]),
-            e.dst = stoi(data[idx][1]),
-            e.w = stoi(data[idx][2]);
-            new_data[row] = e;
+            new_data[row] = {stoi(data[row][0]),
+                             stoi(data[row][1]),
+                             stoi(data[row][2])};
         }
         return new_data;
     }
