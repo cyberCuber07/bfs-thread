@@ -1,0 +1,113 @@
+
+#ifndef __BFS_H_
+#define __BFS_H_
+
+#include <vector>
+#include <string>
+#include <queue>
+#include <thread>
+
+#include "graph_converter.h"
+#include "read_csv.h"
+
+
+template <typename _type>
+struct BFS {
+
+    int N, max_val, n_workers;
+    vec1d<bool> vis;
+    vec2d<_type> adj;
+ 
+    template <typename InsertT>
+    BFS (std::string path, InsertT insert, int n_workers) : n_workers(n_workers)
+    {
+        ReadCSV reader;
+        adj = edge2adj<_type>(reader.load(path), insert, N);
+        vis.assign(N, false);
+    }
+
+    std::vector<std::queue<_type>> init_qs(const int & n_nodes, const int & starting_node) {
+
+        std::vector<std::queue<_type>> qs (n_nodes);
+
+        for (int i = 0; i < n_nodes; ++i) {
+            qs[i].push( adj[starting_node][0] );
+        }
+
+        return qs;
+    }
+
+    std::vector<int> get_idxs (const int & idx) {
+
+        std::vector<int> idxs;
+        for (const _type & val : adj[idx]) {
+            if ( !vis[val.src] ) idxs.push_back( val.src );
+        }
+
+        return idxs;
+    }
+
+    int solve() {
+
+        max_val = 0;
+
+        for (int i = 0; i < N; ++i) {
+
+            std::vector<int> idxs = get_idxs(i);
+            int n_nodes = idxs.size();
+            // std::vector<std::queue<_type>> qs = init_qs(n_nodes, starting_node);
+
+            std::vector<std::thread> ths (n_nodes);
+            /* NOTICE: using CPU multithreading some MAX_THREAD_NUMBER
+             *          and corresponding thread runner will probably be required
+             */
+            for (int t = 0; t < n_nodes; ++t) {
+                ths[t] = std::thread( &BFS::solve_one, this, idxs[t] );
+            }
+            for (int t = 0; t < n_nodes; ++t) {
+                ths[t].join();
+            }
+
+            solve_one(i);
+        }
+
+        return max_val;
+    }
+
+    void node_run(std::queue<_type> & q, _type tmp) {
+
+        max_val = std::max(max_val, tmp.w);
+        
+        for (_type e : adj[tmp.src])
+        {
+            q.push(e);
+        }
+    }
+
+    void solve_one(int idx) {
+
+        /* in this implementation looking for maximum distance
+         * between any two connected points in the graph */
+
+        std::queue<_type> q;
+        q.push(adj[idx][0]);
+
+        while (!q.empty())
+        {
+            _type tmp = q.front();
+            q.pop();
+
+            if ( !vis[tmp.src] )
+            {
+                vis[tmp.src] = true;
+
+                node_run(q, tmp);
+            }
+
+        }
+    }
+
+};
+
+
+#endif
