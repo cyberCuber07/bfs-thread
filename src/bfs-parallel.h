@@ -63,15 +63,24 @@ struct BFS {
             int n_nodes = idxs.size();
             // std::vector<std::queue<_type>> qs = init_qs(n_nodes, starting_node);
 
-            std::vector<std::thread> ths (n_nodes);
             /* NOTICE: using CPU multithreading some MAX_THREAD_NUMBER
              *          and corresponding thread runner will probably be required
              */
-            for (int t = 0; t < n_nodes; ++t) {
-                ths[t] = std::thread( &BFS::solve_one, this, adj[idxs[t]][0] );
-            }
-            for (int t = 0; t < n_nodes; ++t) {
-                ths[t].join();
+            // extra loop for max number of threads - THREAD_MAX
+            static const int THREAD_MAX = n_workers;
+            const int iter_num = n_nodes / THREAD_MAX;
+            if ( n_nodes <= THREAD_MAX ) continue;
+            for (int idx = 0; idx < iter_num; ++idx) {
+                const int idx1 = idx * THREAD_MAX,
+                          idx2 = (idx + 1) * THREAD_MAX;
+                int loc_iter_num = idx2 - idx1 + 1;
+                std::vector<std::thread> ths (loc_iter_num);
+                for (int t = 0; t < loc_iter_num; ++t) {
+                    ths[t] = std::thread( &BFS::solve_one, this, adj[idxs[t + idx1]][0] );
+                }
+                for (int t = 0; t < loc_iter_num; ++t) {
+                    ths[t].join();
+                }
             }
         }
 
