@@ -39,9 +39,15 @@ struct BFS {
 
     std::vector<int> get_idxs (const int & idx) {
 
+        /* method returing indexes to iterate over for each node ---
+         * number of threads correspond to the number of "idxs" vector
+         * NOTICE: getting only indexes for nodes that:
+         *      -- hasn't been visited yet
+         *      -- candidate node isn't a leaf node */
+
         std::vector<int> idxs;
         for (const _type & val : adj[idx]) {
-            if ( !vis[val.src] ) idxs.push_back( val.src );
+            if ( !vis[val.src] && adj[val.src].size() ) idxs.push_back( val.src );
         }
 
         return idxs;
@@ -62,7 +68,7 @@ struct BFS {
              *          and corresponding thread runner will probably be required
              */
             for (int t = 0; t < n_nodes; ++t) {
-                ths[t] = std::thread( &BFS::solve_one, this, idxs[t] );
+                ths[t] = std::thread( &BFS::solve_one, this, adj[idxs[t]][0] );
             }
             for (int t = 0; t < n_nodes; ++t) {
                 ths[t].join();
@@ -84,13 +90,13 @@ struct BFS {
         }
     }
 
-    void solve_one(int idx) {
+    void solve_one(_type val) {
 
         /* in this implementation looking for maximum distance
          * between any two connected points in the graph */
 
         std::queue<_type> q;
-        q.push(adj[idx][0]);
+        q.push(val);
 
         while (!q.empty())
         {
