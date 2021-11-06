@@ -6,8 +6,7 @@
 int main(int argc, char ** argv)
 {
     std::string path = argv[1];
-    int n_workers = 6;
-    BFS<edge> bfs(path, insertEdge, n_workers);
+    BFS<edge> bfs(path, insertEdge);
 
     std::cout << bfs.solve() << "\n";
 }

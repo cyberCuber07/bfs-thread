@@ -67,8 +67,6 @@ struct BFS {
             for (int t = 0; t < n_nodes; ++t) {
                 ths[t].join();
             }
-
-            solve_one(i);
         }
 
         return max_val;
@@ -80,7 +78,9 @@ struct BFS {
         
         for (_type e : adj[tmp.src])
         {
-            q.push(e);
+            if ( !vis[e.src] ) {
+                q.push(e);
+            }
         }
     }
 

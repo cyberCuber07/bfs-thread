@@ -23,7 +23,7 @@ struct dest {
 };
 
 
-int numEdges(const vec1d<edge> & edges) {
+int numEdges(vec1d<edge> & edges) {
 
     int max_val(0);
     bool any (false);
@@ -35,7 +35,17 @@ int numEdges(const vec1d<edge> & edges) {
 
     }
 
-    return any ? max_val + 1 : max_val;
+    if (!any) {
+        std::cout << "Decreasing values!\n";
+        // shift values by one (so the min := 0 and max := N - 1)
+        for (auto & e : edges) {
+            --e.src;
+            --e.dst;
+        }
+        return max_val;
+    }
+
+    return max_val + 1;
 
 }
 
@@ -51,7 +61,7 @@ dest insertDest(edge e) {
 
 
 template <typename T, typename TInserter>
-vec2d<T> edge2adj(const vec1d<edge> edges, TInserter inserter, int & N) {
+vec2d<T> edge2adj(vec1d<edge> edges, TInserter inserter, int & N) {
 
     N = numEdges(edges);
     vec2d<T> adj(N, std::vector<T>(0));
@@ -74,6 +84,7 @@ std::ostream & operator << (std::ostream & os,
     for (int i = 0; i < data.size(); ++i) {
         os << "# " << i << " #\n";
         for (T d : data[i]) {
+            // os << d << "\n";
             os << d.dst << " " << d.w << " | ";
         }
         os << "\n";

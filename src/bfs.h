@@ -13,12 +13,12 @@
 template <typename _type>
 struct BFS {
 
-    int N, max_val, n_workers;
+    int N, max_val;
     vec1d<bool> vis;
     vec2d<_type> adj;
  
     template <typename InsertT>
-    BFS (std::string path, InsertT insert, int n_workers) : n_workers(n_workers)
+    BFS (std::string path, InsertT insert)
     {
         ReadCSV reader;
         adj = edge2adj<_type>(reader.load(path), insert, N);
@@ -31,7 +31,8 @@ struct BFS {
         max_val = 0;
 
         for (int i = 0; i < N; ++i) {
-            max_val = std::max(max_val, solve_one(i));
+            if ( adj[i].size() > 0 )
+                solve_one(adj[i][0]);
         }
 
         return max_val;
@@ -47,13 +48,13 @@ struct BFS {
         }
     }
 
-    int solve_one(int idx) {
+    void solve_one(_type val) {
 
         /* in this implementation looking for maximum distance
          * between any two connected points in the graph */
 
         std::queue<_type> q;
-        q.push(adj[idx][0]);
+        q.push(val);
 
         while (!q.empty())
         {
@@ -68,8 +69,6 @@ struct BFS {
             }
 
         }
-
-        return max_val;
     }
 
 };
