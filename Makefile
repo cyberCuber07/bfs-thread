@@ -7,6 +7,9 @@ multi:
 cuda:
 	nvcc src/bfs-gpu.cu -o bin/cuda.bin
 
+cuda-new:
+	g++ src/bfs-gpu.cpp -o bin/cuda-new.bin -lpthread
+
 test:
 	g++ tests/read_csv_tests.cpp src/read_csv.cpp -o bin/read_csv_tests.test
 

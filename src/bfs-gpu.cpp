@@ -11,6 +11,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 
 template <typename T>
 using vec2d = std::vector<std::vector<T>>;
@@ -103,17 +104,16 @@ struct ReadCSV {
 };
 
 
-__global__
-void solve_one(Edge * edges,
+void solve_one_CPU(Edge * edges,
                int * idxs,
                bool * vis,
                int * max_val,
-               int M) {
+               int M,
+               int tid) {
 
     /* in this implementation looking for maximum distance
      * between any two connected points in the graph */
 
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int idx1 = idxs[tid],
         idx2 = tid == M - 1 ? M - 1 : idxs[tid + 1];
 
@@ -138,13 +138,15 @@ void solve_one(Edge * edges,
             for (int i = idx1; i <= idx2; ++i)
             {
                 Edge e = edges[i];
-                if ( !vis[e.src] ) {
+                if ( !vis[e.src] )
+                {
                     q[++ptr] = e;
                 }
             }
             // ----------------------------
         }
     }
+
     delete[] q;
 }
 
@@ -201,28 +203,17 @@ struct BFS {
         }
 
         ADJ (std::string path) {
+            // load data
             ReadCSV reader;
             h_edges = reader.load(path, N, M);
             size = N * sizeof(Edge);
-            cudaMalloc( &d_idxs, M * sizeof(int) );
-            cudaMalloc( &d_vis, M * sizeof(bool) );
+            // create idxs vector
             getIdxs(h_edges);
+            // ------------------------------
+            // --M;
+            // ------------------------------
             h_vis = new bool[M];
             for (int i = 0; i < M; ++i) h_vis[i] = false;
-            cudaMemcpy( d_idxs, h_idxs, M * sizeof(int), cudaMemcpyHostToDevice );
-            cudaMemcpy( d_vis, h_vis, M * sizeof(bool), cudaMemcpyHostToDevice );
-            // delete[] h_vis;
-            // delete[] h_idxs;
-            // delete tmp_M;
-            cudaMalloc( &d_edges, size );
-            cudaMemcpy( d_edges, h_edges, size, cudaMemcpyHostToDevice );
-            // delete[] tmp_edges;
-        }
-
-        ~ADJ() {
-            // delete h_max_val;
-            // delete[] h_vis;
-            // delete[] h_idxs;
         }
 
         // ---- BFS ---- //
@@ -232,23 +223,17 @@ struct BFS {
             int max_val = 0;
             h_max_val = &max_val;
 
-            cudaMalloc( &d_max_val, sizeof(int) );
-            cudaMemcpy( d_max_val, h_max_val, sizeof(int), cudaMemcpyHostToDevice );
-
             // main part
-            const int blockSize = 1024,
-                      gridSize = M / blockSize;
-            solve_one <<< gridSize, blockSize >>> (d_edges, d_idxs, d_vis, d_max_val, M);
-            cudaDeviceSynchronize();
-
-            // GPU -> CPU
-            cudaMemcpy( h_max_val, d_max_val, sizeof(int), cudaMemcpyDeviceToHost );
-            cudaFree(d_edges);
-            cudaFree(d_max_val);
-            cudaFree(d_idxs);
-            cudaFree(d_vis);
+            std::vector<std::thread> ths(M);
+            for (int i = 0; i < M; ++i) {
+                ths[i] = std::thread( solve_one_CPU, h_edges, h_idxs, h_vis, h_max_val, M, i );
+            }
+            for (int i = 0; i < M; ++i) {
+                ths[i].join();
+            }
             // --------------------------------------------------
-            max_val = *h_max_val;
+
+            // max_val = *h_max_val;
 
             return max_val;
         }
