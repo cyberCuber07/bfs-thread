@@ -110,6 +110,7 @@ void solve_one(Edge * edges,
                bool * vis,
                int * max_val,
                int M,
+               int N,
                int * log) {
 
     /* in this implementation looking for maximum distance
@@ -126,13 +127,16 @@ void solve_one(Edge * edges,
     while (ptr >= 0)
     {
         Edge tmp = q[ptr--];
+        log[tid] = tid;
 
         if ( !vis[tmp.src] )
         {
             vis[tmp.src] = true;
-            // log[tid] = tmp.src;
 
             // node run
+            if ( log[tid] < tmp.w ) {
+                log[tid] = tmp.w;
+            }
             if ( max_val[0] < tmp.w )
             {
                 max_val[0] = tmp.w;
@@ -244,22 +248,23 @@ struct BFS {
             cudaMalloc( &d_max_val, sizeof(int) );
             cudaMemcpy( d_max_val, h_max_val, sizeof(int), cudaMemcpyHostToDevice );
 
+            int log_val = M;
             int * d_log, * h_log;
-            h_log = new int[N];
-            for (int i = 0; i < N; ++i) h_log[i] = 1;
-            cudaMalloc( &d_log, 4 * N );
-            cudaMemcpy( d_log, h_log, 4 * N, cudaMemcpyHostToDevice );
+            h_log = new int[log_val];
+            for (int i = 0; i < log_val; ++i) h_log[i] = 0;
+            cudaMalloc( &d_log, sizeof(int) * log_val );
+            cudaMemcpy( d_log, h_log, sizeof(int) * log_val, cudaMemcpyHostToDevice );
 
             // main part
-            const int blockSize = 1024,
-                      gridSize = M / blockSize;
-            solve_one <<< gridSize, blockSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, d_log);
+            int SIZE = 1024;
+            dim3 blockSize (SIZE, M / SIZE + 1);
+            dim3 gridSize (1, 1); // (M / SIZE + 1, M / SIZE + 1);
+            solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, N, d_log);
             cudaDeviceSynchronize();
 
             // GPU -> CPU
             cudaMemcpy( h_max_val, d_max_val, sizeof(int), cudaMemcpyDeviceToHost );
-            cudaMemcpy( h_log, d_log, 4 * N, cudaMemcpyDeviceToHost );
-            print( h_log, h_log + N );
+            cudaMemcpy( h_log, d_log, sizeof(int) * log_val, cudaMemcpyDeviceToHost );
             cudaFree(d_edges);
             cudaFree(d_log);
             cudaFree(d_max_val);
@@ -267,6 +272,8 @@ struct BFS {
             cudaFree(d_vis);
             // --------------------------------------------------
             max_val = *h_max_val;
+
+            for (int i = 0; i < log_val; ++i) max_val = std::max(max_val, h_log[i]);
 
             return max_val;
         }
@@ -289,61 +296,7 @@ void getIdxs(Edge * edges, int * h_idxs, int M, int N) {
 
 int main(int argc, char ** argv)
 {
-    int N, M;
-    std::size_t size;
-    int * d_idxs, * h_idxs;
-    bool * d_vis, * h_vis;
-    Edge * d_edges, * h_edges;
-    int * d_max_val, * h_max_val;
-
-    ReadCSV reader;
-    h_edges = reader.load(argv[1], N, M);
-    size = N * sizeof(Edge);
-    h_idxs = new int[M];
-    getIdxs(h_edges, h_idxs, M, N);
-    h_vis = new bool[M];
-    for (int i = 0; i < M; ++i) h_vis[i] = false;
-    cudaMalloc( &d_idxs, M * sizeof(int) );
-    cudaMalloc( &d_vis, M * sizeof(bool) );
-    cudaMalloc( &d_edges, size );
-    cudaMemcpy( d_idxs, h_idxs, M * sizeof(int), cudaMemcpyHostToDevice );
-    cudaMemcpy( d_vis, h_vis, M * sizeof(bool), cudaMemcpyHostToDevice );
-    cudaMemcpy( d_edges, h_edges, size, cudaMemcpyHostToDevice );
-    // delete[] h_vis;
-    // delete[] h_idxs;
-    // delete tmp_M;
-    // delete[] tmp_edges;
-
-    int max_val = 0;
-    h_max_val = &max_val;
-                                                                                         
-    cudaMalloc( &d_max_val, sizeof(int) );
-    cudaMemcpy( d_max_val, h_max_val, sizeof(int), cudaMemcpyHostToDevice );
-                                                                                         
-    int * d_log, * h_log;
-    h_log = new int[N];
-    for (int i = 0; i < N; ++i) h_log[i] = 1;
-    cudaMalloc( &d_log, sizeof(int) * N );
-    cudaMemcpy( d_log, h_log, sizeof(int) * N, cudaMemcpyHostToDevice );
-                                                                                         
-    // main part
-    const int blockSize = 1024,
-              gridSize = M / blockSize + 1;
-    solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, d_log);
-    cudaDeviceSynchronize();
-                                                                                         
-    // GPU -> CPU
-    cudaMemcpy( h_max_val, d_max_val, sizeof(int), cudaMemcpyDeviceToHost );
-    cudaMemcpy( h_log, d_log, sizeof(int) * N, cudaMemcpyDeviceToHost );
-    print( h_log, h_log + N );
-    cudaFree(d_edges);
-    cudaFree(d_log);
-    cudaFree(d_max_val);
-    cudaFree(d_idxs);
-    cudaFree(d_vis);
-    // --------------------------------------------------
-    max_val = *h_max_val;
-
-    print( h_max_val, h_max_val + 1 );
-
+    std::string path = argv[1];
+    BFS g( path );
+    std::cout << g.max_val << "\n";
 }
