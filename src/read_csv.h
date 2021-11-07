@@ -81,6 +81,23 @@ struct ReadCSV {
     }
 
 
+    Edge * convert_data_type(const csv_data & data) {
+        int ROW = data.size();
+        Edge * new_data = new Edge[ROW];
+        for (int row = 0; row < ROW; ++row) {
+            new_data[row] = {stoi(data[row][0]),
+                             stoi(data[row][1]),
+                             stoi(data[row][2])};
+        }
+        return new_data;
+    }
+
+
+    Edge * load(const std::string & path) {
+        csv_data data = read_csv(path);
+        return convert_data_type(data);
+    }
+
 };
 
 

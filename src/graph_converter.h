@@ -12,6 +12,10 @@ template <typename T>
 using vec2d = std::vector<std::vector<T>>;
 
 
+struct Edge {
+    int src, dst, w;
+};
+
 struct edge {
     int src = 0,
         dst = 0,
