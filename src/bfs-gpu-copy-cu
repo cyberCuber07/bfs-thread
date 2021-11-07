@@ -119,6 +119,9 @@ void solve_one(Edge * edges,
     int idx1 = idxs[tid],
         idx2 = tid == M - 1 ? M - 1 : idxs[tid + 1];
 
+    log[0] = idx1;
+    log[1] = idx2;
+
     Edge * q = new Edge[M];
     int ptr = 0;
     q[ptr] = edges[idx1];
@@ -133,9 +136,13 @@ void solve_one(Edge * edges,
             // log[tid] = tmp.src;
 
             // node run
-            if ( max_val[0] < tmp.w )
+            // if ( max_val[0] < tmp.w )
+            // {
+            //     max_val[0] = tmp.w;
+            // }
+            if ( log[tid] < tmp.w )
             {
-                max_val[0] = tmp.w;
+                log[tid] = tmp.w;
             }
                                                  
             for (int i = idx1; i <= idx2; ++i)
@@ -275,21 +282,9 @@ struct BFS {
 };
 
 
-void getIdxs(Edge * edges, int * h_idxs, int M, int N) {
-    /* idxs vector stores info when each new node begins in edge list */
-    int cnt = 0;
-    for (int i = 1; i < N; ++i) {
-        /* compares with "cnt" value because edge numering := {0, ..., max_val - 1} */
-        if ( cnt != edges[i].src ) {
-            h_idxs[cnt++] = i;
-        }
-    }
-}
-
-
 int main(int argc, char ** argv)
 {
-    int N, M;
+    int N, M, * d_M;
     std::size_t size;
     int * d_idxs, * h_idxs;
     bool * d_vis, * h_vis;
@@ -299,8 +294,7 @@ int main(int argc, char ** argv)
     ReadCSV reader;
     h_edges = reader.load(argv[1], N, M);
     size = N * sizeof(Edge);
-    h_idxs = new int[M];
-    getIdxs(h_edges, h_idxs, M, N);
+    getIdxs(h_edges);
     h_vis = new bool[M];
     for (int i = 0; i < M; ++i) h_vis[i] = false;
     cudaMalloc( &d_idxs, M * sizeof(int) );
@@ -323,18 +317,18 @@ int main(int argc, char ** argv)
     int * d_log, * h_log;
     h_log = new int[N];
     for (int i = 0; i < N; ++i) h_log[i] = 1;
-    cudaMalloc( &d_log, sizeof(int) * N );
-    cudaMemcpy( d_log, h_log, sizeof(int) * N, cudaMemcpyHostToDevice );
+    cudaMalloc( &d_log, 4 * N );
+    cudaMemcpy( d_log, h_log, 4 * N, cudaMemcpyHostToDevice );
                                                                                          
     // main part
     const int blockSize = 1024,
-              gridSize = M / blockSize + 1;
-    solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, d_log);
+              gridSize = M / blockSize;
+    solve_one <<< gridSize, blockSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, d_log);
     cudaDeviceSynchronize();
                                                                                          
     // GPU -> CPU
     cudaMemcpy( h_max_val, d_max_val, sizeof(int), cudaMemcpyDeviceToHost );
-    cudaMemcpy( h_log, d_log, sizeof(int) * N, cudaMemcpyDeviceToHost );
+    cudaMemcpy( h_log, d_log, 4 * N, cudaMemcpyDeviceToHost );
     print( h_log, h_log + N );
     cudaFree(d_edges);
     cudaFree(d_log);
@@ -343,7 +337,5 @@ int main(int argc, char ** argv)
     cudaFree(d_vis);
     // --------------------------------------------------
     max_val = *h_max_val;
-
-    print( h_max_val, h_max_val + 1 );
-
+                                                                                         
 }
