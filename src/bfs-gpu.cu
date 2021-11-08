@@ -111,46 +111,52 @@ void solve_one(Edge * edges,
                int * max_val,
                int M,
                int N,
+               int SIZE_Y,
                int * log) {
 
     /* in this implementation looking for maximum distance
      * between any two connected points in the graph */
 
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    // int tid = blockIdx.x * blockDim.x + threadIdx.x +
+    //           blockIdx.y * blockDim.y + threadIdx.y;
     int idx1 = idxs[tid],
         idx2 = tid == M - 1 ? M - 1 : idxs[tid + 1];
 
-    Edge * q = new Edge[M];
+    log[tid] = tid;
+
+    Edge * q = new Edge[100];
     int ptr = 0;
     q[ptr] = edges[idx1];
 
     while (ptr >= 0)
     {
-        Edge tmp = q[ptr--];
-        log[tid] = tid;
+         Edge tmp = q[ptr--];
 
-        if ( !vis[tmp.src] )
-        {
-            vis[tmp.src] = true;
+         if ( !vis[tmp.src] )
+         {
+             // vis[tmp.src] = true;
 
-            // node run
-            if ( log[tid] < tmp.w ) {
-                log[tid] = tmp.w;
-            }
-            if ( max_val[0] < tmp.w )
-            {
-                max_val[0] = tmp.w;
-            }
-                                                 
-            for (int i = idx1; i <= idx2; ++i)
-            {
-                Edge e = edges[i];
-                if ( !vis[e.src] ) {
-                    q[++ptr] = e;
-                }
-            }
-            // ----------------------------
-        }
+             // node run
+             // if ( log[tid] < tmp.w )
+             // {
+             //     log[tid] = tmp.w;
+             // }
+             if ( max_val[0] < tmp.w )
+             {
+                 max_val[0] = tmp.w;
+             }
+                                                  
+             // for (int i = idx1; i <= idx2; ++i)
+             // {
+             //     Edge e = edges[i];
+             //     if ( !vis[e.src] )
+             //     {
+             //         q[++ptr] = e;
+             //     }
+             // }
+             // ----------------------------
+         }
     }
     delete[] q;
 }
@@ -209,6 +215,7 @@ struct BFS {
                 /* compares with "cnt" value because edge numering := {0, ..., max_val - 1} */
                 if ( cnt != edges[i].src ) {
                     h_idxs[cnt++] = i;
+                    if ( cnt + 1 == M ) return;
                 }
             }
         }
@@ -218,6 +225,7 @@ struct BFS {
             h_edges = reader.load(path, N, M);
             size = N * sizeof(Edge);
             getIdxs(h_edges);
+            print( h_idxs, h_idxs + M );
             h_vis = new bool[M];
             for (int i = 0; i < M; ++i) h_vis[i] = false;
             cudaMalloc( &d_idxs, M * sizeof(int) );
@@ -246,25 +254,27 @@ struct BFS {
             h_max_val = &max_val;
 
             cudaMalloc( &d_max_val, sizeof(int) );
-            cudaMemcpy( d_max_val, h_max_val, sizeof(int), cudaMemcpyHostToDevice );
 
             int log_val = M;
             int * d_log, * h_log;
             h_log = new int[log_val];
             for (int i = 0; i < log_val; ++i) h_log[i] = 0;
             cudaMalloc( &d_log, sizeof(int) * log_val );
-            cudaMemcpy( d_log, h_log, sizeof(int) * log_val, cudaMemcpyHostToDevice );
 
             // main part
             int SIZE = 1024;
-            dim3 blockSize (SIZE, M / SIZE + 1);
-            dim3 gridSize (1, 1); // (M / SIZE + 1, M / SIZE + 1);
-            solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, N, d_log);
+            int SIZE_Y = M / SIZE + 1;
+            int blockSize = SIZE,
+                gridSize = M / SIZE + 1;
+            // dim3 blockSize (1, 1);
+            // dim3 gridSize (SIZE, SIZE_Y);
+            solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, N, SIZE, d_log);
             cudaDeviceSynchronize();
 
             // GPU -> CPU
             cudaMemcpy( h_max_val, d_max_val, sizeof(int), cudaMemcpyDeviceToHost );
             cudaMemcpy( h_log, d_log, sizeof(int) * log_val, cudaMemcpyDeviceToHost );
+            print( h_log, h_log + M );
             cudaFree(d_edges);
             cudaFree(d_log);
             cudaFree(d_max_val);
@@ -280,18 +290,6 @@ struct BFS {
     };
 
 };
-
-
-void getIdxs(Edge * edges, int * h_idxs, int M, int N) {
-    /* idxs vector stores info when each new node begins in edge list */
-    int cnt = 0;
-    for (int i = 1; i < N; ++i) {
-        /* compares with "cnt" value because edge numering := {0, ..., max_val - 1} */
-        if ( cnt != edges[i].src ) {
-            h_idxs[cnt++] = i;
-        }
-    }
-}
 
 
 int main(int argc, char ** argv)

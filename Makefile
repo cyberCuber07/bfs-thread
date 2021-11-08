@@ -24,3 +24,6 @@ cuda-double:
 
 cuda-triple:
 	nvcc tests/cuda/thrid.cu -o bin/cuda-third.test
+
+example:
+	nvcc tests/example.cu -o bin/example.test
