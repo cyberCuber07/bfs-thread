@@ -135,26 +135,26 @@ void solve_one(Edge * edges,
 
          if ( !vis[tmp.src] )
          {
-             // vis[tmp.src] = true;
+             vis[tmp.src] = true;
 
              // node run
-             // if ( log[tid] < tmp.w )
-             // {
-             //     log[tid] = tmp.w;
-             // }
+             if ( log[tid] < tmp.w )
+             {
+                 log[tid] = tmp.w;
+             }
              if ( max_val[0] < tmp.w )
              {
                  max_val[0] = tmp.w;
              }
                                                   
-             // for (int i = idx1; i <= idx2; ++i)
-             // {
-             //     Edge e = edges[i];
-             //     if ( !vis[e.src] )
-             //     {
-             //         q[++ptr] = e;
-             //     }
-             // }
+             for (int i = idx1; i <= idx2; ++i)
+             {
+                 Edge e = edges[i];
+                 if ( !vis[e.src] )
+                 {
+                     q[++ptr] = e;
+                 }
+             }
              // ----------------------------
          }
     }
