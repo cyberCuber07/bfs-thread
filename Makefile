@@ -5,7 +5,7 @@ multi:
 	g++ src/multi/main.cpp src/bfs-parallel.h src/read_csv.h src/graph_converter.h -o bin/multi.bin -lpthread
 
 cuda:
-	nvcc src/bfs-gpu.cu -o bin/cuda.bin
+	nvcc src/bfs-gpu.cu src/queue.cu -o bin/cuda.bin
 
 cuda-new:
 	g++ src/bfs-gpu.cpp -o bin/cuda-new.bin -lpthread
@@ -27,3 +27,6 @@ cuda-triple:
 
 example:
 	nvcc tests/example.cu -o bin/example.test
+
+load:
+	nvcc tests/loader.cu -o bin/loader.test -arch=compute_61 -lcudadevrt -lcublas_device

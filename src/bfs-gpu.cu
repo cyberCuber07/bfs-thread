@@ -12,6 +12,9 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include "queue.cu"
+
+using namespace DataStructs;
 
 template <typename T>
 using vec2d = std::vector<std::vector<T>>;
@@ -125,13 +128,18 @@ void solve_one(Edge * edges,
 
     log[tid] = tid;
 
-    Edge * q = new Edge[100];
+    // Edge * q = new Edge[100];
+    Queue<Edge> q;
+    q.push(edges[idx1]);
     int ptr = 0;
-    q[ptr] = edges[idx1];
+    // q[ptr] = edges[idx1];
 
-    while (ptr >= 0)
+    // while (ptr >= 0)
+    while ( !q.empty() )
     {
-         Edge tmp = q[ptr--];
+         // Edge tmp = q[ptr--];
+         Edge tmp = q.top();
+         q.pop();
 
          if ( !vis[tmp.src] )
          {
@@ -152,13 +160,14 @@ void solve_one(Edge * edges,
                  Edge e = edges[i];
                  if ( !vis[e.src] )
                  {
-                     q[++ptr] = e;
+                     q.push(e);
+                     // q[++ptr] = e;
                  }
              }
              // ----------------------------
          }
     }
-    delete[] q;
+    // delete[] q;
 }
 
 
