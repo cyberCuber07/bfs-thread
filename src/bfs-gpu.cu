@@ -21,6 +21,7 @@ using namespace DataStructs;
 typedef int ll;
 
 
+
 template <typename Op>
 __device__
 void warpReduce(volatile ll * data, int tid, Op op) {
@@ -66,7 +67,7 @@ void add(ll * in, ll * out, int * sum, Op op) {
 
 
 template <typename Op>
-__host__ __device__
+__device__
 void reduce(ll * in, ll * out, int * sum, int N, Op op) {
     int threadSize = N < 1024 ? N : 1024,
         gridSize = (N + threadSize) / threadSize,
@@ -199,11 +200,25 @@ T maxFunctor(const T a, const T b) {
 }
 
 
-__device__
-void setValue(int * arr, int N, int val) {
-    for (int i = 0; i < N; ++i) {
-        arr[i] = val;
+
+namespace Util{
+
+    template <typename It>
+    __host__ __device__
+    void rewrite(It s1, It e1, It s2) {
+        while ( s1 != e1 ) {
+            *s2++ = *s1++;
+        }
     }
+
+    template <typename It, typename T>
+    __device__
+    void setValue(It s, It e, T val) {
+        while ( s != e ) {
+            *s++ = val;
+        }
+    }
+
 }
 
 
@@ -230,7 +245,6 @@ void solve_one(Edge * edges,
     Queue<Edge> q;
     q.push(edges[idx1]);
     int ptr = 0;
-
 
     while ( !q.empty() )
     {
@@ -259,19 +273,20 @@ void solve_one(Edge * edges,
              }
              // ----------------------------
              // ---- REDUCE ---- //
+             // create data
              int * d_in, * d_out;
              const std::size_t size = dim * sizeof(ll);
              cudaMalloc( &d_in, size );
              cudaMalloc( &d_out, size );
-             setValue(d_out, N, 0);
+             // rewrite values
+             Util::rewrite(h_in, h_in + N, d_in);
+             Util::setValue(d_out, d_out + N, 0);
              // main part
              reduce(d_in, d_out, &log[tid], N, maxFunctor<int>);
              // deallocate memory
              cudaFree(d_in);
              cudaFree(d_out);
              // ----------------------------
-             printf( "value: %d, ",maxFunctor(190, 111) );
-             printf( "value: %d\n",maxFunctor(111, 11) );
          }
     }
 }
