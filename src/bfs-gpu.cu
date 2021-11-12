@@ -15,6 +15,68 @@ using namespace DataStructs;
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <stdio.h>
+
+
+typedef int ll;
+
+
+template <typename Op>
+__device__
+void warpReduce(volatile ll * data, int tid, Op op) {
+    data[tid] = op(data[tid], data[tid + 32]);
+    data[tid] = op(data[tid], data[tid + 16]);
+    data[tid] = op(data[tid], data[tid + 8]);
+    data[tid] = op(data[tid], data[tid + 4]);
+    data[tid] = op(data[tid], data[tid + 2]);
+    data[tid] = op(data[tid], data[tid + 1]);
+}
+
+
+template <typename Op>
+__global__
+void add(ll * in, ll * out, int * sum, Op op) {
+    extern __shared__ ll shm[];
+    unsigned int tid = threadIdx.x,
+                 gid = blockDim.x * blockIdx.x * 2 + threadIdx.x;
+
+    shm[tid] = 0;
+    // shm[tid] = in[gid] + in[gid + blockDim.x];
+    shm[tid] = op(shm[tid], in[gid] + in[gid + blockDim.x]);
+   __syncthreads();
+
+    for (unsigned int stride = blockDim.x / 2; stride > 32; stride /= 2) {
+        if ( tid < stride ) {
+            // shm[tid] += shm[tid + stride];
+            shm[tid] = op(shm[tid], shm[tid + stride]);
+        }
+        __syncthreads();
+    }
+
+    if ( tid < 32 ) {
+        warpReduce(shm, tid, op);
+    }
+
+    if ( tid == 0 ) {
+        out[blockIdx.x] = shm[0];
+    }
+
+    *sum = out[0];
+}
+
+
+template <typename Op>
+__host__ __device__
+void reduce(ll * in, ll * out, int * sum, int N, Op op) {
+    int threadSize = N < 1024 ? N : 1024,
+        gridSize = (N + threadSize) / threadSize,
+        shmSize = threadSize * sizeof(ll);
+    gridSize /= 2;
+    // main part
+    add <<< gridSize, threadSize, shmSize >>> (in, out, sum, op);
+    add <<< 1, threadSize, shmSize >>> (out, out, sum, op);
+}
+
 
 template <typename T>
 using vec2d = std::vector<std::vector<T>>;
@@ -130,6 +192,21 @@ void updateIndexes(int * idx1, int * idx2, int * idxs, int M, int idx) {
 }
 
 
+template <typename T>
+__device__
+T maxFunctor(const T a, const T b) {
+    return a > b ? a : b;
+}
+
+
+__device__
+void setValue(int * arr, int N, int val) {
+    for (int i = 0; i < N; ++i) {
+        arr[i] = val;
+    }
+}
+
+
 __global__
 void solve_one(Edge * edges,
                int * idxs,
@@ -140,7 +217,6 @@ void solve_one(Edge * edges,
                int SIZE_Y,
                int * log) {
 
-    d_vec.assign(10);
     /* in this implementation looking for maximum distance
      * between any two connected points in the graph */
 
@@ -165,19 +241,37 @@ void solve_one(Edge * edges,
          {
              vis[tmp.src] = true;
 
-             *max_val = max(*max_val, tmp.w);
-             log[tid] = max(log[tid], tmp.w);
+             // *max_val = max(*max_val, tmp.w);
+             // log[tid] = max(log[tid], tmp.w);
 
              updateIndexes(&idx1, &idx2, idxs, M, tmp.src);
+             // create Device array for edges
+             const int dim = idx2 - idx1 + 1;
+             int * h_in = new int[dim], cnt = 0;
              for (int i = idx1; i <= idx2; ++i)
              {
                  Edge e = edges[i];
                  if ( !vis[e.src] )
                  {
                      q.push(e);
+                     h_in[cnt++] = e.src;
                  }
              }
              // ----------------------------
+             // ---- REDUCE ---- //
+             int * d_in, * d_out;
+             const std::size_t size = dim * sizeof(ll);
+             cudaMalloc( &d_in, size );
+             cudaMalloc( &d_out, size );
+             setValue(d_out, N, 0);
+             // main part
+             reduce(d_in, d_out, &log[tid], N, maxFunctor<int>);
+             // deallocate memory
+             cudaFree(d_in);
+             cudaFree(d_out);
+             // ----------------------------
+             printf( "value: %d, ",maxFunctor(190, 111) );
+             printf( "value: %d\n",maxFunctor(111, 11) );
          }
     }
 }
