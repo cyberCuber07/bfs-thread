@@ -108,16 +108,23 @@ struct ReadCSV {
 
 
 __host__ __device__
-void updateIndexes(int * idx1, int * idx2, int * idxs, int M, int idx) {
-    *idx1 = idxs[idx];
-    *idx2 = idx == M - 1 ? M - 1 : idxs[idx + 1];
+updateIndexes(int * idx1, int * idx2, int * idxs, int M, int idx) {
+    idx1 = idxs[idx];
+    idx2 = idx == M - 1 ? M - 1 : idxs[idx + 1];
 }
 
 
-// __host__ __device__
-// int max(int a, int b) {
-//     return a > b ? a : b;
-// }
+__host__ __device__
+void node_run(Edge * edges, bool * vis, Queue<Edge> q, int * mtx) { // TODO: remove passing Queue<Edge> over using a Shared Memory!!!!!!!!
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = idx1 + col;
+    Edge e = edges[i];
+    if ( !vis[e.src] && atomicCAS(mtx, 0, 1) )
+    {
+        q.push(e);
+        atomicEach(mtx, 0);
+    }
+}
 
 
 __global__
@@ -136,7 +143,8 @@ void solve_one(Edge * edges,
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     // int tid = blockIdx.x * blockDim.x + threadIdx.x +
     //           blockIdx.y * blockDim.y + threadIdx.y;
-    int idx1(idxs[tid]), idx2;
+    int idx1, idx2;
+    updateIndxes(idx1, idx2, idxs, M, tid);
 
     log[tid] = tid;
 
@@ -153,18 +161,24 @@ void solve_one(Edge * edges,
          {
              vis[tmp.src] = true;
 
-             *max_val = max(*max_val, tmp.w);
-             log[tid] = max(log[tid], tmp.w);
-
-             updateIndexes(&idx1, &idx2, idxs, M, tmp.src);
-             for (int i = idx1; i <= idx2; ++i)
+             // node run
+             if ( log[tid] < tmp.w )
              {
-                 Edge e = edges[i];
-                 if ( !vis[e.src] )
-                 {
-                     q.push(e);
-                 }
+                 log[tid] = tmp.w;
              }
+             if ( max_val[0] < tmp.w )
+             {
+                 max_val[0] = tmp.w;
+             }
+             
+             updateIndexes(idx1, idx2, indexes, M, idx);
+             int * mtx;
+             cudaMalloc( &mtx, sizeof(int) );
+             cudaMemset( mtx, 0, sizeof(int) );
+             int dif = idx2 - idx1,
+                 blockSize = dif > 1024 ? 1024 : dif,
+                 gridSize = dif / 1024 + 1;
+             node_run <<< gridSize, blockSize >>> ();
              // ----------------------------
          }
     }
@@ -234,7 +248,7 @@ struct BFS {
             h_edges = reader.load(path, N, M);
             size = N * sizeof(Edge);
             getIdxs(h_edges);
-            // print( h_idxs, h_idxs + M );
+            print( h_idxs, h_idxs + M );
             h_vis = new bool[M];
             for (int i = 0; i < M; ++i) h_vis[i] = false;
             cudaMalloc( &d_idxs, M * sizeof(int) );
