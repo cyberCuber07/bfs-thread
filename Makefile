@@ -9,3 +9,6 @@ cuda:
 
 cuda-second:
 	nvcc src/bfs-gpu-second.cu src/queue.cu -arch=sm_35 -rdc=true -lcudadevrt -o bin/cuda-second.bin
+
+multi-test:
+	nvcc tests/multi.cu -arch=sm_35 -rdc=true -lcudadevrt -o bin/multi.test

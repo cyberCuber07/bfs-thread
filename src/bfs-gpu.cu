@@ -63,6 +63,7 @@ void add(ll * in, ll * out, int * sum, Op op) {
     }
 
     *sum = out[0];
+    printf( "%d %d | ", out[0], *sum );
 }
 
 
@@ -76,6 +77,7 @@ void reduce(ll * in, ll * out, int * sum, int N, Op op) {
     // main part
     add <<< gridSize, threadSize, shmSize >>> (in, out, sum, op);
     add <<< 1, threadSize, shmSize >>> (out, out, sum, op);
+    cudaDeviceSynchronize();
 }
 
 
@@ -200,6 +202,12 @@ T maxFunctor(const T a, const T b) {
 }
 
 
+template <typename T>
+__device__
+T sumFunctor(const T a, const T b) {
+    return a + b;
+}
+
 
 namespace Util{
 
@@ -260,7 +268,7 @@ void solve_one(Edge * edges,
 
              updateIndexes(&idx1, &idx2, idxs, M, tmp.src);
              // create Device array for edges
-             const int dim = idx2 - idx1 + 1;
+             const int dim = idx2 - idx1 + 2;
              int * h_in = new int[dim], cnt = 0;
              for (int i = idx1; i <= idx2; ++i)
              {
@@ -278,12 +286,20 @@ void solve_one(Edge * edges,
              const std::size_t size = dim * sizeof(ll);
              cudaMalloc( &d_in, size );
              cudaMalloc( &d_out, size );
+             int * d;
+             cudaMalloc( &d, 4);
              // rewrite values
-             Util::rewrite(h_in, h_in + N, d_in);
-             Util::setValue(d_out, d_out + N, 0);
+             Util::rewrite(h_in,
+                           h_in + dim,
+                           d_in);
+             Util::setValue(d_out,
+                            d_out + dim,
+                            0);
              // main part
-             reduce(d_in, d_out, &log[tid], N, maxFunctor<int>);
+             reduce(d_in, d_out, d, dim, maxFunctor<int>);
              // deallocate memory
+             log[tid] = *d;
+             cudaFree(d);
              cudaFree(d_in);
              cudaFree(d_out);
              // ----------------------------
