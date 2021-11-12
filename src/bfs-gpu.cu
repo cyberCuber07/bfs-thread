@@ -1,4 +1,8 @@
 
+#include "queue.cu"
+
+using namespace DataStructs;
+
 #include <string>
 #include <queue>
 #include <thread>
@@ -11,15 +15,12 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
-#include <mutex>
-#include "queue.cu"
-
-using namespace DataStructs;
 
 template <typename T>
 using vec2d = std::vector<std::vector<T>>;
 template <typename T>
 using vec1d = std::vector<T>;
+
 
 struct Edge {
     int src, dst, w;
@@ -107,17 +108,26 @@ struct ReadCSV {
 };
 
 
+std::ostream & operator << (std::ostream & os, Edge e) {
+    os << e.src << " " << e.dst << " " << e.w << " | ";
+    return os;
+}
+
+
+template <typename It>
+void print (It start, It end) {
+    while ( start != end ) {
+        std::cout << *start++ << " ";
+    }
+    std::cout << "\n";
+}
+
+
 __host__ __device__
 void updateIndexes(int * idx1, int * idx2, int * idxs, int M, int idx) {
     *idx1 = idxs[idx];
     *idx2 = idx == M - 1 ? M - 1 : idxs[idx + 1];
 }
-
-
-// __host__ __device__
-// int max(int a, int b) {
-//     return a > b ? a : b;
-// }
 
 
 __global__
@@ -130,6 +140,7 @@ void solve_one(Edge * edges,
                int SIZE_Y,
                int * log) {
 
+    d_vec.assign(10);
     /* in this implementation looking for maximum distance
      * between any two connected points in the graph */
 
@@ -143,6 +154,7 @@ void solve_one(Edge * edges,
     Queue<Edge> q;
     q.push(edges[idx1]);
     int ptr = 0;
+
 
     while ( !q.empty() )
     {
@@ -171,35 +183,14 @@ void solve_one(Edge * edges,
 }
 
 
-std::ostream & operator << (std::ostream & os, Edge e) {
-    os << e.src << " " << e.dst << " " << e.w << " | ";
-    return os;
-}
-
-
-template <typename It>
-void print (It start, It end) {
-    while ( start != end ) {
-        std::cout << *start++ << " ";
-    }
-    std::cout << "\n";
-}
-
-
 struct BFS {
 
-    int N, max_val, n_workers;
-    std::vector<std::pair<int,int>> adj_idxs;
-    vec1d<bool> vis;
-    vec2d<Edge> adj;
+    int max_val;
 
     BFS (std::string path)
     {
         ADJ Adj ( path );
         max_val = Adj.solve();
-        // adj = edge2adj<Edge>(reader.load(path), insert, N);                       
-        // sort_adj();
-        // vis.assign(N, false);
     }
                                                                                      
     /* cuda variables */
@@ -275,8 +266,6 @@ struct BFS {
             int SIZE_Y = M / SIZE + 1;
             int blockSize = SIZE,
                 gridSize = M / SIZE + 1;
-            // dim3 blockSize (1, 1);
-            // dim3 gridSize (SIZE, SIZE_Y);
             solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, N, SIZE, d_log);
             cudaDeviceSynchronize();
 
