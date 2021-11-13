@@ -36,14 +36,14 @@ void warpReduce(volatile ll * data, int tid, Op op) {
 
 template <typename Op>
 __global__
-void add(ll * in, ll * out, int * sum, Op op) {
+void add(ll * in, ll * out, Op op) {
     extern __shared__ ll shm[];
     unsigned int tid = threadIdx.x,
                  gid = blockDim.x * blockIdx.x * 2 + threadIdx.x;
 
-    shm[tid] = 0;
-    // shm[tid] = in[gid] + in[gid + blockDim.x];
-    shm[tid] = op(shm[tid], in[gid] + in[gid + blockDim.x]);
+    // shm[tid] = 0;
+    shm[tid] = in[gid] + in[gid + blockDim.x];
+    // shm[tid] = op(in[gid], in[gid + blockDim.x]);
    __syncthreads();
 
     for (unsigned int stride = blockDim.x / 2; stride > 32; stride /= 2) {
@@ -61,22 +61,20 @@ void add(ll * in, ll * out, int * sum, Op op) {
     if ( tid == 0 ) {
         out[blockIdx.x] = shm[0];
     }
-
-    *sum = out[0];
-    printf( "%d %d | ", out[0], *sum );
 }
 
 
 template <typename Op>
 __device__
-void reduce(ll * in, ll * out, int * sum, int N, Op op) {
+void reduce(ll * in, ll * out, int N, Op op) {
     int threadSize = N < 1024 ? N : 1024,
         gridSize = (N + threadSize) / threadSize,
         shmSize = threadSize * sizeof(ll);
     gridSize /= 2;
     // main part
-    add <<< gridSize, threadSize, shmSize >>> (in, out, sum, op);
-    add <<< 1, threadSize, shmSize >>> (out, out, sum, op);
+    add <<< gridSize, threadSize, shmSize >>> (in, out, op);
+    cudaDeviceSynchronize();
+    add <<< 1, threadSize, shmSize >>> (out, out, op);
     cudaDeviceSynchronize();
 }
 
@@ -215,7 +213,9 @@ namespace Util{
     __host__ __device__
     void rewrite(It s1, It e1, It s2) {
         while ( s1 != e1 ) {
-            *s2++ = *s1++;
+            *s2= *s1;
+            if ( *s1 != *s2 ) printf( "Error!!\n\n" );
+            ++s2, ++s1;
         }
     }
 
@@ -230,11 +230,24 @@ namespace Util{
 }
 
 
+// template <typename It, typename T>
+// T getMaxVal(It start, It end)
+__host__ __device__
+int getMaxVal(int * start, int N)
+{
+    int tmp_max(0);
+    while ( N-- )
+    {
+        tmp_max = max(tmp_max, start[N]);
+    }
+    return tmp_max;
+}
+
+
 __global__
 void solve_one(Edge * edges,
                int * idxs,
                bool * vis,
-               int * max_val,
                int M,
                int N,
                int SIZE_Y,
@@ -243,12 +256,10 @@ void solve_one(Edge * edges,
     /* in this implementation looking for maximum distance
      * between any two connected points in the graph */
 
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     // int tid = blockIdx.x * blockDim.x + threadIdx.x +
     //           blockIdx.y * blockDim.y + threadIdx.y;
     int idx1(idxs[tid]), idx2;
-
-    log[tid] = tid;
 
     Queue<Edge> q;
     q.push(edges[idx1]);
@@ -263,20 +274,19 @@ void solve_one(Edge * edges,
          {
              vis[tmp.src] = true;
 
-             // *max_val = max(*max_val, tmp.w);
              // log[tid] = max(log[tid], tmp.w);
 
              updateIndexes(&idx1, &idx2, idxs, M, tmp.src);
              // create Device array for edges
-             const int dim = idx2 - idx1 + 2;
-             int * h_in = new int[dim], cnt = 0;
+             const int dim = idx2 - idx1 + 1;
+             ll * h_in = new ll[dim], cnt = 0;
              for (int i = idx1; i <= idx2; ++i)
              {
                  Edge e = edges[i];
                  if ( !vis[e.src] )
                  {
                      q.push(e);
-                     h_in[cnt++] = e.src;
+                     h_in[cnt++] = e.w;
                  }
              }
              // ----------------------------
@@ -286,8 +296,6 @@ void solve_one(Edge * edges,
              const std::size_t size = dim * sizeof(ll);
              cudaMalloc( &d_in, size );
              cudaMalloc( &d_out, size );
-             int * d;
-             cudaMalloc( &d, 4);
              // rewrite values
              Util::rewrite(h_in,
                            h_in + dim,
@@ -296,10 +304,12 @@ void solve_one(Edge * edges,
                             d_out + dim,
                             0);
              // main part
-             reduce(d_in, d_out, d, dim, maxFunctor<int>);
+             reduce(d_in, d_out, dim, maxFunctor<ll>);
+             // printf( "%d ", d_out[0] );
              // deallocate memory
-             log[tid] = *d;
-             cudaFree(d);
+             log[tid] = getMaxVal(d_out, dim);
+             // printf( "%d %d | ", log[tid], d_out[0] );
+             delete[] h_in;
              cudaFree(d_in);
              cudaFree(d_out);
              // ----------------------------
@@ -375,38 +385,32 @@ struct BFS {
 
         int solve() {
 
-            int max_val = 0;
-            h_max_val = &max_val;
-
-            cudaMalloc( &d_max_val, sizeof(int) );
-
-            int log_val = M;
+            const int log_val = M;
             int * d_log, * h_log;
             h_log = new int[log_val];
-            for (int i = 0; i < log_val; ++i) h_log[i] = 0;
             cudaMalloc( &d_log, sizeof(int) * log_val );
 
             // main part
-            int SIZE = 1024;
-            int SIZE_Y = M / SIZE + 1;
-            int blockSize = SIZE,
-                gridSize = M / SIZE + 1;
-            solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, d_max_val, M, N, SIZE, d_log);
+            const int SIZE = 1024;
+            const int blockSize = SIZE,
+                      gridSize = (M + SIZE) / SIZE;
+            solve_one <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, M, N, SIZE, d_log);
             cudaDeviceSynchronize();
 
             // GPU -> CPU
-            cudaMemcpy( h_max_val, d_max_val, sizeof(int), cudaMemcpyDeviceToHost );
             cudaMemcpy( h_log, d_log, sizeof(int) * log_val, cudaMemcpyDeviceToHost );
-            print( h_log, h_log + M );
+            // Util::rewrite( d_log, d_log + log_val, h_log );
+            // print( h_log, h_log + log_val );
             cudaFree(d_edges);
             cudaFree(d_log);
-            cudaFree(d_max_val);
             cudaFree(d_idxs);
             cudaFree(d_vis);
             // --------------------------------------------------
-            max_val = *h_max_val;
 
+            int max_val(0);
             for (int i = 0; i < log_val; ++i) max_val = std::max(max_val, h_log[i]);
+
+            delete[] h_log;
 
             return max_val;
         }
