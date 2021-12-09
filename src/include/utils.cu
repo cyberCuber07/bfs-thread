@@ -110,4 +110,25 @@ void print (It start, It end) {
     std::cout << "\n";
 }
 
+__host__ __device__
+void updateIndexes(int * idx1, int * idx2, int * idxs, int M, int idx) {
+    *idx1 = idxs[idx];
+    *idx2 = idx == M - 1 ? M - 1 : idxs[idx + 1];
+}
+
+
+namespace ReduxFunctors {
+    template <typename T>
+    __device__
+    T maxFunctor(const T a, const T b) {
+        return a > b ? a : b;
+    }
+
+    template <typename T>
+    __device__
+    T sumFunctor(const T a, const T b) {
+        return a + b;
+    }
+}
+
 #endif
