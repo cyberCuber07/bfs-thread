@@ -2,7 +2,7 @@
 #define __KERNELS_THIRD_H_
 
 
-#include "../include/utils.cu"
+#include "../include/utils.ch"
 
 
 __global__

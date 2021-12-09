@@ -1,8 +1,6 @@
 #ifndef __SOLVER__CUH_
 #define __SOLVER__CUH_
 
-#include "../kernels/third.cu"
-
 struct BFS {
 
     int max_val {0};

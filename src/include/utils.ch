@@ -6,7 +6,7 @@
 #include <sstream>
 #include <fstream>
 
-#include "queue.cu"
+#include "queue.ch"
 
 using namespace DataStructs;
 

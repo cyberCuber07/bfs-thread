@@ -1,7 +1,7 @@
 #ifndef __KERNELS_ONE_CH
 #define __KERNELS_ONE_CH
 
-#include "../include/utils.cu"
+#include "../include/utils.ch"
 
 using namespace ReduxFunctors;
 
