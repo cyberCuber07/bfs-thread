@@ -7,6 +7,9 @@ multi:
 cuda:
 	nvcc src/bfs-gpu.cu -arch=sm_35 -rdc=true -lcudadevrt -o bin/cuda.bin
 
+cuda-third:
+	nvcc src/bfs-gpu-third.cu -arch=sm_35 -rdc=true -lcudadevrt -o bin/cuda-third.bin
+
 cuda-second:
 	nvcc src/bfs-gpu-second.cu src/queue.cu -arch=sm_35 -rdc=true -lcudadevrt -o bin/cuda-second.bin
 

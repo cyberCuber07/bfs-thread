@@ -1,5 +1,5 @@
 
-#include "queue.cu"
+#include "utils/queue.cu"
 
 using namespace DataStructs;
 
@@ -251,69 +251,25 @@ void solve_one(Edge * edges,
                int M,
                int N,
                int SIZE_Y,
-               int * log) {
+               int * log)
+{
 
     /* in this implementation looking for maximum distance
      * between any two connected points in the graph */
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    // int tid = blockIdx.x * blockDim.x + threadIdx.x +
-    //           blockIdx.y * blockDim.y + threadIdx.y;
     int idx1(idxs[tid]), idx2;
+    updateIndexes(&idx1, &idx2, idxs, M, tid);
 
-    Queue<Edge> q;
-    q.push(edges[idx1]);
-    int ptr = 0;
+    // --- REDUX --- //
+    int diff = idx2 - idx1;
+    // if (diff++ <= 0) return;
 
-    while ( !q.empty() )
-    {
-         Edge tmp = q.top();
-         q.pop();
+    int blockSize = 1024 > diff ? 1024 : diff,
+        gridSize = (diff + blockSize) / blockSize;
 
-         if ( !vis[tmp.src] )
-         {
-             vis[tmp.src] = true;
-
-             // log[tid] = max(log[tid], tmp.w);
-
-             updateIndexes(&idx1, &idx2, idxs, M, tmp.src);
-             // create Device array for edges
-             const int dim = idx2 - idx1 + 1;
-             ll * h_in = new ll[dim], cnt = 0;
-             for (int i = idx1; i <= idx2; ++i)
-             {
-                 Edge e = edges[i];
-                 if ( !vis[e.src] )
-                 {
-                     q.push(e);
-                     h_in[cnt++] = e.w;
-                 }
-             }
-             // ----------------------------
-             // ---- REDUCE ---- //
-             // create data
-             int * d_in, * d_out;
-             const std::size_t size = dim * sizeof(ll);
-             cudaMalloc( &d_in, size );
-             cudaMalloc( &d_out, size );
-             // rewrite values
-             Util::rewrite(h_in,
-                           h_in + dim,
-                           d_in);
-             Util::setValue(d_out,
-                            d_out + dim,
-                            0);
-             // main part
-             reduce(d_in, d_out, dim, maxFunctor<ll>);
-             // printf( "%d ", d_out[0] );
-             // deallocate memory
-             log[tid] = getMaxVal(d_out, dim);
-             // printf( "%d %d | ", log[tid], d_out[0] );
-             delete[] h_in;
-             cudaFree(d_in);
-             cudaFree(d_out);
-             // ----------------------------
-         }
+    for (int i = idx1; i <= idx2; ++i) {
+        log[i] = maxFunctor(log[i], edges[i].w);
     }
 }
 
@@ -327,7 +283,7 @@ struct BFS {
         ADJ Adj ( path );
         max_val = Adj.solve();
     }
-                                                                                     
+
     /* cuda variables */
     struct ADJ {
         /* GPU struct to:

@@ -1,5 +1,8 @@
 
-#include "bfs-gpu.cu"
+#include <iostream>
+
+#include "include/utils.cu"
+#include "include/solver.cuh"
 
 
 int main(int argc, char ** argv)
