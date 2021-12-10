@@ -1,6 +1,9 @@
 #ifndef __SOLVER__CUH_
 #define __SOLVER__CUH_
 
+#include <chrono>
+#include "single.ch"
+
 struct BFS {
 
     int max_val {0};
@@ -31,21 +34,24 @@ struct BFS {
         }
     }
 
-    int allocate() {
-        size = N * sizeof(Edge);
-        getIdxs(h_edges);
-        // print( h_idxs, h_idxs + M );
-        h_vis = new bool[M];
-        for (int i = 0; i < M; ++i) h_vis[i] = false;
+    void cudaAllocate(int log_val) {
         cudaMalloc( &d_idxs, M * sizeof(int) );
         cudaMalloc( &d_vis, M * sizeof(bool) );
         cudaMalloc( &d_edges, size );
         cudaMemcpy( d_idxs, h_idxs, M * sizeof(int), cudaMemcpyHostToDevice );
         cudaMemcpy( d_vis, h_vis, M * sizeof(bool), cudaMemcpyHostToDevice );
         cudaMemcpy( d_edges, h_edges, size, cudaMemcpyHostToDevice );
+        cudaMalloc( &d_log, sizeof(int) * log_val );
+    }
+
+    int allocate() {
+        size = N * sizeof(Edge);
+        getIdxs(h_edges);
+        // print( h_idxs, h_idxs + M );
+        h_vis = new bool[M];
+        for (int i = 0; i < M; ++i) h_vis[i] = false;
         const int log_val = M;
         h_log = new int[log_val];
-        cudaMalloc( &d_log, sizeof(int) * log_val );
         return log_val;
     }
 
@@ -59,8 +65,22 @@ struct BFS {
     template <typename SolverT>
     void solve(SolverT solver) {
         int log_val = allocate();
+        cudaAllocate(log_val);
+        // --- SOLVE --- //
+        auto start_time = std::chrono::steady_clock::now();
         max_val = solver(d_edges, d_idxs, d_vis, M, N, log_val, d_log, h_log);
+        // --- MEASURE TIME --- //
+        std::cout << "Time elapsed: " << std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - start_time).count() << " microseconds\n";
         deallocate();
+    }
+
+    void solveSingleCaller() {
+        allocate();
+        auto start_time = std::chrono::steady_clock::now();
+        max_val = solveSingle(h_edges, h_idxs, h_vis, M, N, h_log);
+        std::cout << "Time elapsed: " << std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - start_time).count() << " microseconds\n";
     }
 
     ~BFS() {

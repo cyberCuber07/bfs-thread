@@ -1,5 +1,5 @@
-#ifndef __KERNELS_THIRD_H_
-#define __KERNELS_THIRD_H_
+#ifndef __KERNELS_SINGLE_H_
+#define __KERNELS_SINGLE_H_
 
 
 #include "../include/utils.ch"
@@ -52,7 +52,7 @@ void solveThirdKernel (Edge * edges,
 }
 
 
-int solveThree(Edge * d_edges, int * d_idxs, bool * d_vis, int M, int N, int log_val, int * d_log, int * h_log) {
+int solveThird(Edge * d_edges, int * d_idxs, bool * d_vis, int M, int N, int log_val, int * d_log, int * h_log) {
 
     const int SIZE = 1024;
     const int blockSize = SIZE,

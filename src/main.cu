@@ -11,6 +11,7 @@ int main(int argc, char ** argv)
 {
     std::string path = argv[1];
     BFS g( path );
-    g.solve(solveThird);
+    g.solve(solveThree);
+    // g.solveSingleCaller();
     std::cout << g.max_val << "\n";
 }
