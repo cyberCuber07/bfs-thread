@@ -1,5 +1,5 @@
-#ifndef __SOLVER__CUH_
-#define __SOLVER__CUH_
+#ifndef __SOLVER__CH_
+#define __SOLVER__CH_
 
 #include <chrono>
 #include "single.ch"
@@ -29,9 +29,10 @@ struct BFS {
             /* compares with "cnt" value because edge numering := {0, ..., max_val - 1} */
             if ( cnt != edges[i].src ) {
                 h_idxs[cnt++] = i;
-                if ( cnt + 1 == M ) return;
+                if ( cnt + 1 == M ) break;
             }
         }
+        h_idxs[M - 1] = N - 1;
     }
 
     void cudaAllocate(int log_val) {
@@ -47,7 +48,6 @@ struct BFS {
     int allocate() {
         size = N * sizeof(Edge);
         getIdxs(h_edges);
-        // print( h_idxs, h_idxs + M );
         h_vis = new bool[M];
         for (int i = 0; i < M; ++i) h_vis[i] = false;
         const int log_val = M;

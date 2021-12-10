@@ -1,0 +1,15 @@
+2021-12-10 09:33:52
+Filename : 5.csv.csv
+Vertices : 7500
+Total Edges : 58076785
+Max Edge : 20000
+Min Edge : 0
+Directed : True
+Signed : False
+Multigraph : True
+Self Loop : True
+Weighted : True
+Max Weight : 1000000000
+Min Weight : 100000
+Elapsed Time : 00 days, 00 hours, 03 minutes, 35 seconds
+-------------------------------

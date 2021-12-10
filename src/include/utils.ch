@@ -113,7 +113,7 @@ void print (It start, It end) {
 __host__ __device__
 void updateIndexes(int * idx1, int * idx2, int * idxs, int M, int idx) {
     *idx1 = idxs[idx];
-    *idx2 = idx == M - 1 ? M - 1 : idxs[idx + 1];
+    *idx2 = idx == M - 1 ? idxs[idx] : idxs[idx + 1];
 }
 
 

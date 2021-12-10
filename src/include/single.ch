@@ -14,10 +14,9 @@ void solveSingleH(Edge * edges,
                        int tid)
 {
 
+    if (tid == M - 1) return;
     int idx1 = idxs[tid],
-        idx2 = tid == M - 1 ? M - 1 : idxs[tid + 1];
-
-    if (idx1 >= idx2) return;
+        idx2 = idxs[tid + 1];
 
     Queue<Edge> q;
     q.push(edges[idx1]);
@@ -37,7 +36,7 @@ void solveSingleH(Edge * edges,
                  log[tid] = tmp.w;
              }
 
-             updateIndexes(&idx1, &idx2, idxs, M, tid);
+             // updateIndexes(&idx1, &idx2, idxs, M, tid);
              for (int i = idx1; i <= idx2; ++i)
              {
                  Edge e = edges[i];
