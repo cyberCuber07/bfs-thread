@@ -1,5 +1,5 @@
 single:
-	g++ src/single/main.cpp src/bfs.h src/read_csv.h src/graph_converter.h -o bin/single.bin
+	nvcc src/main-single.cu -arch=sm_35 -rdc=true -lcudadevrt -o bin/cuda-single.bin
 
 multi:
 	g++ src/multi/main.cpp src/bfs-parallel.h src/read_csv.h src/graph_converter.h -o bin/multi.bin -lpthread

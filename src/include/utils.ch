@@ -31,6 +31,7 @@ struct ReadCSV {
         tmp.dst = stoi(word);
         getline(s, word, delim);
         tmp.w = stoi(word);
+        // std::cout << tmp.src << " " << tmp.dst <<  " " << tmp.w << "\n";
         return tmp;
     }
 
@@ -90,6 +91,7 @@ struct ReadCSV {
         // save to adj list
         vec2d<Edge> adj = edge2adj(data);
         M = adj.size();
+        std::cout << "N = " << N <<  ", " << "M = " << M << "\n";
         // move back to edge list
         return adj2edge(adj, N);
     }

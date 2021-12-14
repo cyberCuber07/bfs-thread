@@ -15,9 +15,13 @@ void solveThirdKernel (Edge * edges,
                        int * log)
 {
 
-    int tid = blockIdx.x * blockDim.x + threadIdx.x,
+    int bid = blockIdx.x + blockIdx.y * gridDim.x;
+    int tid = bid * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x,
+    // int tid = blockIdx.x * blockDim.x + threadIdx.x,
         idx1 = idxs[tid],
         idx2 = tid == M - 1 ? M - 1 : idxs[tid + 1];
+
+    // printf( "tid = %d\n", tid );
 
     log[tid] = tid;
 
@@ -32,6 +36,8 @@ void solveThirdKernel (Edge * edges,
          if ( !vis[tmp.src] )
          {
              vis[tmp.src] = true;
+
+             // printf( "(%d,%d,%d), ", tmp.src, tmp.dst, tmp.w );
 
              // node run
              if ( log[tid] < tmp.w )
@@ -57,7 +63,9 @@ int solveThree(Edge * d_edges, int * d_idxs, bool * d_vis, int M, int N, int log
     const int SIZE = 1024;
     const int blockSize = SIZE,
               gridSize = (M + SIZE) / SIZE;
-    solveThirdKernel <<< blockSize, gridSize >>> (d_edges, d_idxs, d_vis, M, N, SIZE, d_log);
+    const dim3 gridSize2D = (gridSize / 20, 20);
+    printf( "blockSize = %d, gridSize = %d\n", blockSize, gridSize );
+    solveThirdKernel <<< blockSize, gridSize2D >>> (d_edges, d_idxs, d_vis, M, N, SIZE, d_log);
     cudaDeviceSynchronize();
 
     // GPU -> CPU
